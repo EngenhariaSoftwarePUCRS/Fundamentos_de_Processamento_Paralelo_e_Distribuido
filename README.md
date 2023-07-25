@@ -1,3 +1,3 @@
 -   COD: 98713-04
 -   Disciplina: Fundamentos De Processamento Paralelo E Distribuído
--   Professor: Fernando Luis Dotti
+-   Professor: [Fernando Luis Dotti](https://github.com/fldotti)
