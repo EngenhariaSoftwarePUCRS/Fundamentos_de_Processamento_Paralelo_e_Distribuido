@@ -1,2 +1,3 @@
-# Fundamentos_de_Processamento_Paralelo_e_Distribuido
-Fundamentos De Processamento Paralelo E Distribuído
+-   COD: 98713-04
+-   Disciplina: Fundamentos De Processamento Paralelo E Distribuído
+-   Professor: Fernando Luis Dotti
