@@ -1,4 +1,4 @@
-## Módulo 01 - Introdução à disciplina e aos conceitos de concorrência - 02 e 07 de Agosto de 2023
+## Módulo 01 - Introdução à disciplina e aos conceitos de concorrência - 02, 07 e 09 de Agosto de 2023
 
 
 ## 02/08 - Panorama Geral da Disciplina
@@ -109,3 +109,7 @@ Estados sem arestas de saída representam situações de **bloqueio** ou **termi
 
 **Justiça (Fairness)**: não faz sentido supor a possibilidade de os comandos de um processo *nunca* serem selecionados para execução.
 Uma computação é justa (*weak fairness*) se um comando que está continuamente habilitado nela acaba por ser executado em um momento.
+
+## 08/09 - Exemplos de Concorrência
+
+Revisão com alguns exercícios
