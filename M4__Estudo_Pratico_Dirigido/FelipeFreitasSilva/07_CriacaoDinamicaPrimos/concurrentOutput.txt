@@ -1,0 +1,31 @@
+  tempo    bytes  url 
+0.54s    19016  https://www.google.com.br
+1.11s   791462  https://www.youtube.com
+1.20s    31630  https://godoc.org
+1.22s    61870  https://golang.org
+1.68s     4154  http://gopl.io
+1.69s elapsed
+0.32s    19027  https://www.google.com.br
+0.54s   900402  https://www.youtube.com
+0.76s    31630  https://godoc.org
+1.03s    61870  https://golang.org
+1.71s     4154  http://gopl.io
+1.72s elapsed
+0.75s    19003  https://www.google.com.br
+1.17s   853367  https://www.youtube.com
+1.25s    31630  https://godoc.org
+1.59s    61870  https://golang.org
+1.91s     4154  http://gopl.io
+1.91s elapsed
+0.66s    18977  https://www.google.com.br
+2.63s   857523  https://www.youtube.com
+2.86s    31630  https://godoc.org
+3.23s    61870  https://golang.org
+3.37s     4154  http://gopl.io
+3.38s elapsed
+0.89s    18940  https://www.google.com.br
+1.64s    31630  https://godoc.org
+1.68s   787177  https://www.youtube.com
+1.99s    61870  https://golang.org
+2.59s     4154  http://gopl.io
+2.60s elapsed
