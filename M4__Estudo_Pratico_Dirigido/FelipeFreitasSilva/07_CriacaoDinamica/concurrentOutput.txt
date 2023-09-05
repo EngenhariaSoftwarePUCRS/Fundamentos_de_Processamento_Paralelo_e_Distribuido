@@ -1,0 +1,9 @@
+  tempo    bytes  url%!(EXTRA string=
+)0.77s    61870  https://golang.org
+0.77s elapsed
+0.31s    19038  https://www.google.com.br
+0.46s   841043  https://www.youtube.com
+0.77s    61870  https://golang.org
+0.90s    31630  https://godoc.org
+1.68s     4154  http://gopl.io
+1.68s elapsed
