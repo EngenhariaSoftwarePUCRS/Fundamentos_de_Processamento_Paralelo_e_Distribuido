@@ -4,7 +4,7 @@
 
 	* 1) Escreva o programa que fica fazendo ifinitamente pang-peng-ping-pong-pung-pang-peng...
 	* R: Código
-	
+ 
 	* 2) Quantas bolas podem ser colocadas neste sistema?
 	* R: O limite é sempre 1 bolinha a menos do que o número de quadras
 */
@@ -87,8 +87,8 @@ func getSound(court int) string {
 }
 
 func main() {
-	const COURTS_AMOUNT = 6
-	BALLS_AMOUNT := 5
+	const COURTS_AMOUNT = 5
+	BALLS_AMOUNT := 4
 	if len(os.Args) > 1 {
 		amount, err := strconv.Atoi(os.Args[1])
 		if err != nil {
