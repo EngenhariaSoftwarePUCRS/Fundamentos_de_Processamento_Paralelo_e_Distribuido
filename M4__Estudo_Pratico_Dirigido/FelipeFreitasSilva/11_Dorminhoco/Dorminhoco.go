@@ -1,10 +1,10 @@
 /*
-* Felipe Freitas Silva
-* 08/09/2023
+	* Felipe Freitas Silva
+	* 08/09/2023
 
-* 1) Adapte o esqueleto de código para simular o popular jogo de 'dorminhoco'.
-* R: Código
- */
+	* 1) Adapte o esqueleto de código para simular o popular jogo de 'dorminhoco'.
+	* R: Código
+*/
 
 package main
 
@@ -15,16 +15,16 @@ import (
 )
 
 const (
-	CARD_AMOUNT = 3
+	Joker = 10
 	Ace Suit = iota
 	Clubs
 	Hearts
 	Cups
-	Joker = 10
-)
-
-var (
-	GAME_CAN_START = false
+	// Show comments and explanations during the game
+	LOG = true
+	CARDS_PER_PLAYER = 3
+	MIN_PLAYER_THINKING_TIME = 0.001 * 1000
+	MAX_PLAYER_THINKING_TIME = 0.005 * 1000
 )
 
 type Suit uint8
@@ -58,74 +58,100 @@ type Card struct {
 
 func (card Card) String() string {
 	if card.suit == Joker {
-		return fmt.Sprintf("%s", card.suit)
+		if card.symbol == "" {
+			return "Carta vazia"
+		}
+		return fmt.Sprint(card.suit)
 	}
-	return fmt.Sprintf("%s de %s", card.symbol, card.suit)
+	return fmt.Sprint(card.symbol, " de ", card.suit)
 }
 
 func canFinish(cards []Card) bool {
-	bySuit := false
-	previousSuit := cards[0].suit
-	for i := 1; i < len(cards); i++ {
-		card := cards[i]
-		if card.suit != Joker && card.suit != previousSuit {
-			bySuit = false
-		}
-	}
-	if bySuit {
-		return true
-	}
+	suits := make(map[Suit]int)	
+	symbols := make(map[string]int)
 
-	byValue := false
-	previousValue := cards[0].symbol
-	for i := 1; i < len(cards); i++ {
-		card := cards[i]
-		if card.suit != Joker && card.symbol != previousValue {
-			byValue = false
-		}
+	for _, card := range cards {
+		suits[card.suit]++
+		symbols[card.symbol]++
 	}
-	if byValue {
-		return true
+	
+	for _, card := range cards {
+		if suits[card.suit] == CARDS_PER_PLAYER || symbols[card.symbol] == CARDS_PER_PLAYER {
+			return true
+		}
 	}
 
 	return false
 }
 
+func announcePlay(player int, currentHand []Card, message string) {
+	// Para facilitar o acompanhamento do jogo, cada jogador leva um tempo para pensar em sua jogada
+	time.Sleep(time.Duration(rand.Intn(
+		MAX_PLAYER_THINKING_TIME - MIN_PLAYER_THINKING_TIME,
+	) + MIN_PLAYER_THINKING_TIME) * time.Millisecond)
+	Print(fmt.Sprintf("\n(%d) Vou jogar\n", player))
+	Print(fmt.Sprintln("CurrentHand: ", currentHand))
+	Print(message)
+}
+
 func jogador(
 	id int,
-	in <-chan Card,
-	out chan<- Card,
+	prevPlayer <-chan Card,
+	nextPlayer chan<- Card,
 	finished chan int,
-	cartasIniciais []Card,
+	startingHand []Card,
 ) {
-	currentHand := cartasIniciais
-    var receivedCard Card
+	currentHand := startingHand
+	haveFinished := false
+    var receivedCard, worstCard Card
 
 	for {
-		if !GAME_CAN_START {
-			continue
-		}
-		// Espera de 5-10 segundos
-		time.Sleep(time.Duration(rand.Intn(5000) + 5000) * time.Millisecond)
-		fmt.Printf("(%d) Vou jogar\n", id)
-		fmt.Println("CurrentHand: ", currentHand)
 		select {
-		case fasterPlayer := <- finished:
-			fmt.Printf("%d bateu, eu (%d) vou bater também\n", fasterPlayer, id)
+		case fasterPlayer := <- finished: {
+			announcePlay(id,
+				currentHand,
+				fmt.Sprintln(fasterPlayer, " bateu, vou bater também"),
+			)
 			finished <- id
-			
-		case receivedCard = <- in:
-			fmt.Printf("(%d) Recebi %s\n", id, receivedCard)
+			haveFinished = true
+			// Nesse ponto, o jogador já bateu e está apenas esperando os outros terminarem
+			// Normalmente, o jogador seguinte vai esperar uma carta de mim, mas como já bati, vou passar uma "carta" vazia
+			// Para simular ele olhando para minhas cartas na mesa
+			nextPlayer <- Card{}
+			return
+		}
+
+		default: {
+			receivedCard = <- prevPlayer
+			announcePlay(id,
+				currentHand,
+				fmt.Sprintln("Recebi", receivedCard),
+			)
 			currentHand = append(currentHand, receivedCard)
-			fmt.Println("CurrentHand: ", currentHand)
-			if canFinish(currentHand) {
-				fmt.Printf("(%d) Vou bater\n", id)
+			Print(fmt.Sprintln("New CurrentHand: ", currentHand))
+			if haveFinished {
+				// Nesse ponto, eu já bati e estou apenas esperando os outros terminarem
+				// Normalmente, o jogador seguinte vai esperar uma carta de mim, mas como já bati, vou passar uma "carta" vazia
+				// Para simular ele olhando para minhas cartas na mesa
+				nextPlayer <- Card{}
+			} else if canFinish(currentHand) || receivedCard.symbol == "" {
+				// Ou posso bater
+				// Ou o jogador anterior bateu, e só vi agora
+				Print(fmt.Sprintln("Vou bater"))
 				finished <- id
+				haveFinished = true
+				// Nesse ponto, eu já bati e estou apenas esperando os outros terminarem
+				// Normalmente, o jogador seguinte vai esperar uma carta de mim, mas como já bati, vou passar uma "carta" vazia
+				// Para simular ele olhando para minhas cartas na mesa
+				nextPlayer <- Card{}
 			} else {
-				worstCard := currentHand[0]
-				fmt.Printf("(%d) Vou passar %s\n", id, worstCard)
-				out <- worstCard
+				// Do contrário, vou passar adiante a pior carta da minha mão
+				cardToRemove := 0
+				worstCard, currentHand = RemoveIndex(cardToRemove, currentHand)
+				Print(fmt.Sprintln("Vou passar ", worstCard))
+				nextPlayer <- worstCard
 			}
+		}
 		}
 	}
 }
@@ -133,7 +159,7 @@ func jogador(
 func insertCard(deck chan<- Card, card Card) {
 	time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
 	deck <- card
-	// fmt.Printf("Inseri %s\n", card)
+	Print(fmt.Sprintln("Inseri ", card), false)
 }
 
 func getCard(deck <-chan Card) Card {
@@ -143,14 +169,18 @@ func getCard(deck <-chan Card) Card {
 func main() {
 	const PLAYER_AMOUNT = 4
 
+	Print(fmt.Sprintln("======================================"), true)
+	Print(fmt.Sprintf("Iniciando dorminhoco com %d jogadores.\n", PLAYER_AMOUNT), true)
+	Print(fmt.Sprintln("======================================"), true)
+
 	players := make([]chan Card, PLAYER_AMOUNT)
 	for i := 0; i < PLAYER_AMOUNT; i++ {
-		players[i] = make(chan Card, CARD_AMOUNT)
+		players[i] = make(chan Card, CARDS_PER_PLAYER)
 	}
 
 	finished := make(chan int, PLAYER_AMOUNT)
 
-	deck := [PLAYER_AMOUNT * CARD_AMOUNT + 1]Card{
+	deck := [PLAYER_AMOUNT * CARDS_PER_PLAYER + 1]Card{
 		{"12", Ace},
 		{"12", Clubs},
 		{"12", Hearts},
@@ -172,10 +202,10 @@ func main() {
 	}
 	
 	for i := 0; i < PLAYER_AMOUNT; i++ {
-		playerCards := make([]Card, CARD_AMOUNT)
-		for j := 0; j < CARD_AMOUNT; j++ {
+		playerCards := make([]Card, CARDS_PER_PLAYER)
+		for j := 0; j < CARDS_PER_PLAYER; j++ {
 			card := getCard(shuffled_deck)
-			// fmt.Printf("Dando %s para o jogador %d\n", card, i)
+			Print(fmt.Sprintf("Dando %s para o jogador %d\n", card, i))
 			playerCards[j] = card
 		}
 		go jogador(
@@ -186,13 +216,44 @@ func main() {
 			playerCards,
 		)
 	}
-	// fmt.Println("Última carta: ", getCard(shuffled_deck))
-	players[0] <- getCard(shuffled_deck)
-	GAME_CAN_START = true
-	
+	lastCard := getCard(shuffled_deck)
+	close(shuffled_deck)
+	Print(fmt.Sprintf("Entregando %s para o 1º jogador\n", lastCard))
+	players[0] <- lastCard
+
+	podium := make([]int, PLAYER_AMOUNT)
+	Print(fmt.Sprintln("Esperando jogadores terminarem"))
+	for i := 0; i < PLAYER_AMOUNT; i++ {
+		podium[i] = <- finished
+		Print(fmt.Sprintf("Jogador %d terminou\n", podium[i]))
+	}
+	close(finished)
+
+	Print(fmt.Sprintln("======================================"), true)
 	for i := 0; i < PLAYER_AMOUNT - 1; i++ {
-		fmt.Printf("%d ficou em %dº lugar\n", <- finished, i+1)
+		fmt.Printf("Jogador %d ficou em %dº lugar\n", podium[i], i+1)
 	}
 
-	fmt.Println(<- finished, "ficou em último lugar e leva rolhada!")
+	fmt.Printf("Jogador %d ficou em último lugar e leva rolhada!\n", podium[PLAYER_AMOUNT - 1])
+
+
+	Print(fmt.Sprintln("======================================"), true)
+	Print(fmt.Sprintln("\tObrigado por jogar!"), true)
+}
+
+func RemoveIndex(index int, s []Card) (Card, []Card) {
+    return s[index], append(s[:index], s[index+1:]...)
+}
+
+// Print prints a message if LOG is true
+// 
+// If override is true, it prints regardless of LOG
+func Print(message string, override ...bool) {
+	overrides := (len(override) > 0 && override[0])
+	if !overrides {
+		return
+	}
+	if LOG || overrides {
+		fmt.Print(message)
+	}
 }
