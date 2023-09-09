@@ -1,28 +1,28 @@
 /*
-* Felipe Freitas Silva
-* 05/09/2023
+	* Felipe Freitas Silva
+	* 05/09/2023
 
 
-* Dada uma árvore inicializada e uma operação de caminhamento, pede-se fazer:
+	* Dada uma árvore inicializada e uma operação de caminhamento, pede-se fazer:
 
-* 1) a operação que soma todos elementos da árvore.
-* R:
+	* 1) A operação que soma todos elementos da árvore.
+	* R: Linhas [89-95]
 
-* 2) uma operação concorrente que soma todos elementos da árvore
-* R:
+	* 2) Uma operação concorrente que soma todos elementos da árvore
+	* R: Linhas [97-112]
 
-* 3) a operação de busca de um elemento v, dizendo true se encontrou v na árvore, ou falso
-* R:
+	* 3) A operação de busca de um elemento v, dizendo true se encontrou v na árvore, ou falso
+	* R: Linhas [114-124]
 
-* 4) a operação de busca concorrente de um elemento, que informa imediatamente por um canal se encontrou o elemento (sem acabar a busca), ou informa que não encontrou ao final da busca
-* R:
+	* 4) A operação de busca concorrente de um elemento, que informa imediatamente por um canal se encontrou o elemento (sem acabar a busca), ou informa que não encontrou ao final da busca
+	* R: Linhas [126-140]
 
-* 5) a operação que escreve todos pares em um canal de saidaPares e todos impares em um canal saidaImpares, e ao final avisa que acabou em um canal fin
-* R:
+	* 5) A operação que escreve todos pares em um canal de saidaPares e todos impares em um canal saidaImpares, e ao final avisa que acabou em um canal fin
+	* R: Linhas [221-239]
 
-* 6) a versão concorrente da operação acima, ou seja, os varios nodos sao testados concorrentemente se pares ou impares, escrevendo o valor no canal adequado
-* R:
- */
+	* 6) A versão concorrente da operação acima, ou seja, os varios nodos sao testados concorrentemente se pares ou impares, escrevendo o valor no canal adequado
+	* R: Linhas [142-148]
+*/
 
 package main
 
