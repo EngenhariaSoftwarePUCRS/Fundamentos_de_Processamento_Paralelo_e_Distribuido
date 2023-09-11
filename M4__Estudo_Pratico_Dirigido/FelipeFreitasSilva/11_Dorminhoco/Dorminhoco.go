@@ -1,10 +1,10 @@
 /*
-* Felipe Freitas Silva
-* 08/09/2023
+	* Felipe Freitas Silva
+	* 11/09/2023
 
-* 1) Adapte o esqueleto de código para simular o popular jogo de 'dorminhoco'.
-* R: Código
- */
+	* 1) Adapte o esqueleto de código para simular o popular jogo de 'dorminhoco'.
+	* R: Código
+*/
 
 package main
 
@@ -24,23 +24,24 @@ const (
 	// Show comments from players during the game
 	LOG_PLAYER = true
 	// Show comments from the system
-	LOG_SYSTEM = true
+	LOG_SYSTEM = false
 	// Show prettier (menu-like) messages
 	LOG_PRETTY = true
-	// Number of players in the game
+	// Number of players in the game (should be up to 4 due to deck limitations)
 	PLAYER_AMOUNT = 4
-	// Number of cards each player starts with (should be 3 due to deck limitations)
+	// Number of cards each player starts with (should be up to 3 due to deck limitations)
 	CARDS_PER_PLAYER = 3
 	// Determines the delay between each player's turn (in milliseconds)
-	MIN_PLAYER_THINKING_TIME = 0.1 * 1000
-	MAX_PLAYER_THINKING_TIME = 0.5 * 1000
-	// Determines the delay between each card being dealt (in milliseconds)
-	// The greater the value, the more shuffled the deck will be
-	DEALING_TIME = 5 * 1000
+	MIN_PLAYER_THINKING_TIME = 0.5 * 1000
+	MAX_PLAYER_THINKING_TIME = 1 * 1000
+	// Average dealing time per card (in seconds)
+	AVG_DEAL_TIME_CARD = 3
+	// Determines the delay between each card being dealt (in milliseconds); The greater the value, the more shuffled the deck will be
+	DEALING_TIME = (((PLAYER_AMOUNT * CARDS_PER_PLAYER) + 1) / AVG_DEAL_TIME_CARD) * 1000
 )
 
 var (
-	// Used to print the podium at the end of the game
+	// Used to print the podium at the end of the game and not disrupt the players "seing" the others finishing
 	globalPodium chan int
 )
 
@@ -89,20 +90,23 @@ func (deck Deck) String() string {
 	if len(deck) == 0 {
 		return "[Baralho vazio]"
 	}
-	var str string = "["
+	str := "["
 	for _, card := range deck {
 		str += fmt.Sprint(card, ", ")
 	}
-	return str[:len(str) - 2] + "]"
+	// Removes the last ", " from the string
+	str = str[:len(str) - 2]
+	str += "]"
+	return str
 }
 
-func (deck Deck) RemoveIndex(index int) Card {
+func (deck Deck) RemoveIndex(index int) (Card, Deck) {
 	PrintSystem(fmt.Sprintf("Removendo %s[%d]\n", deck, index))
 	removedCard := deck[index]
 	deck = append(deck[:index], deck[index+1:]...)
 	PrintSystem(fmt.Sprintln("Removi", removedCard))
 	PrintSystem(fmt.Sprintln("Ficou", deck))
-	return removedCard
+	return removedCard, deck
 }
 
 func (deck Deck) Contains(c Card) bool {
@@ -114,7 +118,11 @@ func (deck Deck) Contains(c Card) bool {
 	return false
 }
 
-func (deck Deck) getWorstCard() (card Card, index int) {
+func (deck Deck) Append(c Card) Deck {
+	return append(deck, c)
+}
+
+func (deck Deck) getWorstCard(jokerManager chan bool) (card Card, index int) {
 	PrintSystem(fmt.Sprintln("Analyzing hand:", deck))
 	suits := make(map[Suit]int)
 	symbols := make(map[string]int)
@@ -131,18 +139,25 @@ func (deck Deck) getWorstCard() (card Card, index int) {
 		worstCardIndex = index
 		worstCard = card
 	}
+
 	for i := 1; i < len(deck); i++ {
 		card := deck[i]
 
-		if card.suit == Joker {
-			updateWorstCard(i, card)
-			break
+		// If the card is a joker, check if I can forward it
+		if (card.suit == Joker || card.symbol == "@") {
+			if canForwardJoker(jokerManager) {
+				updateWorstCard(i, card)
+			} else {
+				PrintPlayer(fmt.Sprintln("Infelizmente, ainda não posso passar o coringa adiante"))
+			}
+			continue
 		}
-		// If there are less cards of the current card's symbol or suit than the worst card's, update the worst card
-		if symbols[card.symbol] < symbols[worstCard.symbol] && suits[card.suit] < suits[worstCard.suit] {
+
+		// Make sure not to mark one of the winnig cards as the worst card and then if there are less cards of the current card's symbol or suit than the worst card's, update the worst card
+		if (!(symbols[card.symbol] == CARDS_PER_PLAYER || suits[card.suit] == CARDS_PER_PLAYER) && symbols[card.symbol] < symbols[worstCard.symbol] || suits[card.suit] < suits[worstCard.suit]) {
 			updateWorstCard(i, card)
 		}
-		// // TODO: Test and verify if this works
+		// // Discarted idea, but could be explored
 		// // If there are the same amount of cards of the current card's symbol or suit than the worst card's, randomly update the worst card
 		// if suits[card.suit] == suits[worstCard.suit] && symbols[card.symbol] == symbols[worstCard.symbol] {
 		// 	if rand.Intn(2) == 0 {
@@ -152,6 +167,22 @@ func (deck Deck) getWorstCard() (card Card, index int) {
 	}
 
 	return worstCard, worstCardIndex
+}
+
+func canForwardJoker(jokerManager chan bool) bool {
+	if jokerManager == nil {
+		return false
+	}
+	select {
+	// If I've passed a turn with it, I can pass it forward
+	case <- jokerManager:
+		return true
+
+	default:
+		// If I can't pass it forward, I'll set a flag to pass it forward next turn
+		jokerManager <- true
+		return false
+	}
 }
 
 func insertCard(deck chan<- Card, card Card) {
@@ -180,8 +211,7 @@ func (p Player) String() string {
 }
 
 func (p Player) receiveCard(card Card) Deck {
-	p.hand = append(p.hand, card)
-	return p.hand
+	return p.hand.Append(card)
 }
 
 func (p Player) sendCard(card Card) {
@@ -226,8 +256,7 @@ func (p Player) canFinish() (bool, Deck) {
 }
 
 func (p Player) finish(finished chan<- int) {
-	// Wait for a random amount of time before finishing
-	// To simulate a player waiting for the right moment to finish
+	// Wait for a random amount of time to simulate a player waiting for the right moment to finish
 	thinkingTime := MIN_PLAYER_THINKING_TIME +
 		rand.Intn(MAX_PLAYER_THINKING_TIME - MIN_PLAYER_THINKING_TIME)
 	time.Sleep(time.Duration(thinkingTime) * time.Millisecond)
@@ -239,11 +268,6 @@ func (p Player) finish(finished chan<- int) {
 }
 
 func (p Player) announcePlay(message string) {
-	thinkingTime := MIN_PLAYER_THINKING_TIME +
-		rand.Intn(MAX_PLAYER_THINKING_TIME - MIN_PLAYER_THINKING_TIME)
-	// Simulates the player thinking
-	time.Sleep(time.Duration(thinkingTime) * time.Millisecond)
-
 	PrintPlayer(fmt.Sprintf("\n(%d) Vou jogar\n", p.id))
 	PrintPlayer(fmt.Sprintln("Minha mão:", p.hand))
 	PrintPlayer(message)
@@ -258,12 +282,11 @@ func (p Player) play(
 	p.hand = startingHand
 	p.sendingChan = nextPlayer
 
-	var currentHand Deck = p.hand
     var receivedCard, worstCard Card
 	var worstCardIndex int
 
 	for {
-		PrintPlayer(fmt.Sprintf("(%d) Esperando minha vez...\n", p.id))
+		Print(fmt.Sprintf("(%d) De olho na mesa...\n", p.id), false)
 		select {
 		case fasterPlayer := <- finished: {
 			p.announcePlay(fmt.Sprintln(fasterPlayer, "bateu, vou bater também"))
@@ -275,69 +298,55 @@ func (p Player) play(
 
 		case receivedCard = <- p.receivingChan: {
 			p.announcePlay(fmt.Sprintln("Recebi", receivedCard))
-			currentHand = p.receiveCard(receivedCard)
+			p.hand = p.receiveCard(receivedCard)
+
 			if possible, winningHand := p.canFinish(); possible {
 				PrintPlayer(fmt.Sprintln("Vou bater"))
 				go p.finish(finished)
 
-				for _, card := range currentHand {
+				for _, card := range p.hand {
 					if !winningHand.Contains(card) {
 						worstCard = card
 						break
 					}
 				}
 
+				// Make sure not to pass a winning card
 				if !winningHand.Contains(worstCard) {
-					PrintPlayer(fmt.Sprintf("Vou passar %s\n", worstCard))
-					nextPlayer <- worstCard
+					sendCard := func() {
+						PrintPlayer(fmt.Sprintln("Vou passar o", worstCard))
+						p.sendCard(worstCard)
+					}
+					// Make sure not to pass the joker if I can't forward it
+					if (worstCard.suit == Joker || worstCard.symbol == "@") {
+						if canForwardJoker(jokerManager) {
+							sendCard()
+						}
+					} else {
+						sendCard()
+					}
 				}
 
 				close(jokerManager)
 				return
 			} else {
 				// If I can't finish, I'll pass the worst card
-				_, worstCardIndex = currentHand.getWorstCard()
-				worstCard = currentHand.RemoveIndex(worstCardIndex)
+				_, worstCardIndex = p.hand.getWorstCard(jokerManager)
+				worstCard, p.hand = p.hand.RemoveIndex(worstCardIndex)
 				PrintPlayer(fmt.Sprintln("Minha pior carta é o", worstCard))
-				// Should the worst card be the joker
-				if worstCard.symbol == "@" {
-					select {
-					// If I've passed a turn with it, I can pass it forward
-					case <- jokerManager: {
-						PrintPlayer(fmt.Sprintln("Vou passar", worstCard))
-						nextPlayer <- worstCard
-					}
-
-					default: {
-						PrintPlayer(fmt.Sprintln("Infelizmente, ainda não posso passar o coringa adiante"))
-						jokerManager <- true
-
-						// "Save" joker for later
-						joker := worstCard
-						
-						fmt.Println("\nMinha mão:", currentHand)
-						fmt.Println("Coringa: ", joker)
-						fmt.Println("Pior carta: ", worstCard)
-						// Lookup for the worst card that isn't the joker
-						_, worstCardIndex = currentHand.getWorstCard()
-						worstCard = currentHand.RemoveIndex(worstCardIndex)
-						
-						// "Return" the joker back to my hand
-						p.receiveCard(joker)
-						
-						PrintPlayer(fmt.Sprintln("Vou passar", worstCard))
-						p.sendCard(worstCard)
-					}
-					}
-				} else {
-					// If the worst card isn't the joker, I can pass it forward
-					PrintPlayer(fmt.Sprintln("Vou passar", worstCard))
-					p.sendCard(worstCard)
-				}
+				PrintPlayer(fmt.Sprintln("Vou passar", worstCard))
+				p.sendCard(worstCard)
 			}
 		}
+
+		default: {
+			thinkingTime := MIN_PLAYER_THINKING_TIME +
+				rand.Intn(MAX_PLAYER_THINKING_TIME - MIN_PLAYER_THINKING_TIME)
+
+			// Simulates the player thinking about life; not really necessary, but makes the game more interesting as the players aren't all in sync waiting to either take a card or see someone finish immediatly
+			time.Sleep(time.Duration(thinkingTime) * time.Millisecond)
 		}
-		p.hand = currentHand
+		}
 	}
 }
 
