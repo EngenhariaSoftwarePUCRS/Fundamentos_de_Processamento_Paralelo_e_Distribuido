@@ -46,14 +46,16 @@ func handleRequest(id int, req Request, currentConcurrentProcesses *int) {
 
 func servidorConc(in chan Request, maxConcurrentClients int) {
 	currentConcurrentProcesses, j := 0, 0
-	for currentConcurrentProcesses < maxConcurrentClients {
-		currentConcurrentProcesses++
-		if LOG {
-			fmt.Println("Current concurrent processes: ", currentConcurrentProcesses)
+	for {
+		if currentConcurrentProcesses < maxConcurrentClients {
+			currentConcurrentProcesses++
+			if LOG {
+				fmt.Println("Current concurrent processes: ", currentConcurrentProcesses)
+			}
+			req := <-in
+			j++
+			go handleRequest(j, req, &currentConcurrentProcesses)
 		}
-		req := <-in
-		j++
-		go handleRequest(j, req, &currentConcurrentProcesses)
 	}
 }
 
@@ -68,6 +70,5 @@ func main() {
 	for i := 0; i < CLIENT_AMOUNT; i++ {      // LANÇA DIVERSOS CLIENTES
 		go cliente(i, serverChan)
 	}
-	// <-make(chan struct{})
-	for {}
+	<-make(chan struct{})
 }
