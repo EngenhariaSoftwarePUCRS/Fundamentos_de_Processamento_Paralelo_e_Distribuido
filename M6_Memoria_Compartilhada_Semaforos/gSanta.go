@@ -3,24 +3,24 @@ package main
 import "fmt"
 
 var (
-	elves          uint8 = 0
+	// Amount of elves currently waiting for Santa
+	elves     uint8 = 0
+	// Amount of reindeers currently waiting for Santa
 	reindeers uint8 = 0
-	// Semaphore(0)
+	// Semaphore(0) - Santa waits for either 3 elves or 9 reindeers
 	santaSem = NewSemaphore(0)
-	// Semaphore(0)
+	// Semaphore(0) - Reindeers wait for Santa to hitch them
 	reindeerSem = NewSemaphore(0)
-	// Semaphore(1)
+	// Semaphore(1) - Elves wait for other elves to be helped
 	elfTex = NewSemaphore(1)
-	// Semaphore(1)
+	// Semaphore(1) - Mutex for accessing reindeers and elves counters
 	mutex = NewSemaphore(1)
 )
 
-type Semaphore struct {
-	channel chan struct{}
-}
+type Semaphore chan struct{}
 
 func NewSemaphore(initialSize int) *Semaphore {
-	s := Semaphore{make(chan struct{}, 1)}
+	var s Semaphore = make(chan struct{}, 1)
 	for i := 0; i < initialSize; i++ {
 		s.signal()
 	}
@@ -28,11 +28,11 @@ func NewSemaphore(initialSize int) *Semaphore {
 }
 
 func (s Semaphore) wait() {
-	<-s.channel
+	<-s
 }
 
 func (s Semaphore) signal() {
-	s.channel <- struct{}{}
+	s <- struct{}{}
 }
 
 func santa() {
