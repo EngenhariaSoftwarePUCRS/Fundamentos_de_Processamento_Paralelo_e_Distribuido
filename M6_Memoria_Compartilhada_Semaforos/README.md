@@ -48,6 +48,9 @@ Implementar 3 problemas discutidos em aula.
 2. um problema entre c, d, e 
 3. um problema entre g, f, k
 
+### 1. a - Dining Philosophers
+
+### 2. d - Leitores e escritores sem starvation
 
 ### 3. g - Santa Claus
 
