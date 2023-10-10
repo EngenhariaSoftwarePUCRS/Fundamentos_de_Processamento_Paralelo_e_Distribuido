@@ -50,7 +50,11 @@ Implementar 3 problemas discutidos em aula.
 
 ### 1. a - Dining Philosophers
 
+Solução implementada no arquivo `aFilosofoss.go`
+
 ### 2. d - Leitores e escritores sem starvation
+
+Solução implementada no arquivo `dLeitoresEscritores.go`
 
 ### 3. g - Santa Claus
 
