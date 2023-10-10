@@ -27,43 +27,60 @@ var (
 	mutex = NewSemaphore(1)
 )
 
-type Semaphore chan struct{}
+type Semaphore struct {
+	v    int           // valor do semaforo: negativo significa proc bloqueado
+	fila chan struct{} // canal para bloquear os processos se v < 0
+	sc   chan struct{} // canal para atomicidade das operacoes wait e signal
+}
 
-func NewSemaphore(initialSize int) *Semaphore {
-	var s Semaphore = make(chan struct{}, 1)
-	for i := 0; i < initialSize; i++ {
-		s.signal()
+func NewSemaphore(init int) *Semaphore {
+	s := &Semaphore{
+		v:    init,                   // valor inicial de creditos
+		fila: make(chan struct{}),    // canal sincrono para bloquear processos
+		sc:   make(chan struct{}, 1), // usaremos este como semaforo para SC, somente 0 ou 1
 	}
-	return &s
+	return s
 }
 
-func (s Semaphore) wait() {
-	<-s
+func (s *Semaphore) Wait() {
+	s.sc <- struct{}{} // SC do semaforo feita com canal
+	s.v--              // decrementa valor
+	if s.v < 0 {       // se negativo era 0 ou menor, tem que bloquear
+		<-s.sc               // antes de bloq, libera acesso
+		s.fila <- struct{}{} // bloqueia proc
+	} else {
+		<-s.sc // libera acesso
+	}
 }
 
-func (s Semaphore) signal() {
-	s <- struct{}{}
+func (s *Semaphore) Signal() {
+	s.sc <- struct{}{} // entra sc
+	s.v++
+	if s.v <= 0 { // tem processo bloqueado ?
+		<-s.fila // desbloqueia
+	}
+	<-s.sc // libera SC para outra op
 }
 
 func santa() {
 	for {
 		PrintSanta("Santa is sleeping")
-		santaSem.wait()
+		santaSem.Wait()
 		PrintSanta("Santa is awake")
 		PrintSanta("Santa is waiting to help elves or reindeers")
-		mutex.wait()
+		mutex.Wait()
 		PrintSanta("Santa is ready to help")
 			if reindeers == 9 {
 				prepareSleigh()
 				for i := 0; i < 9; i++ {
 					PrintSanta(fmt.Sprintf("Hitching reindeer %d", i))
-					reindeerSem.signal()
+					reindeerSem.Signal()
 				}
 			} else if elves == 3 {
 				helpElves()
 			}
 		PrintSanta("Santa is done helping")
-		mutex.signal()
+		mutex.Signal()
 		PrintSanta("Santa is going to sleep")
 	}
 }
@@ -80,18 +97,18 @@ func helpElves() {
 func reindeer(name string) {
 	for {
 		PrintReindeer(name + " is waiting")
-		mutex.wait()
+		mutex.Wait()
 		PrintReindeer(name + " is in the critical section")
 			reindeers += 1
 			if reindeers == 9 {
 				PrintReindeer(name + " is waking santa")
-				santaSem.signal()
+				santaSem.Signal()
 			}
 		PrintReindeer(name + " is out the critical section")
-		mutex.signal()
+		mutex.Signal()
 
 		PrintReindeer(fmt.Sprintf("%s is waiting for hitch (%d/9)", name, reindeers))
-		reindeerSem.wait()
+		reindeerSem.Wait()
 		getHitched(name)
 	}
 }
@@ -102,32 +119,32 @@ func getHitched(name string) {
 
 func elf(id string) {
 	for {
-		elfTex.wait()
+		elfTex.Wait()
 		PrintElf(id + " is waiting")
-		mutex.wait()
+		mutex.Wait()
 		PrintElf(id + " is in the critical section")
 			elves += 1
 			if elves == 3 {
 				PrintElf(fmt.Sprintf("%s is waking santa (%d/3)", id, elves))
-				santaSem.signal()
+				santaSem.Signal()
 			} else {
 				PrintElf(fmt.Sprintf("%s is waiting for other elves (%d/4)", id, elves))
-				elfTex.signal()
+				elfTex.Signal()
 			}
 		PrintElf(id + " is out the critical section")
-		mutex.signal()
+		mutex.Signal()
 
 		// Should wait for others
 		getHelp(id)
 
-		mutex.wait()
+		mutex.Wait()
 		PrintElf(id + " is leaving")
 			elves -= 1
 			if elves == 0 {
-				elfTex.signal()
+				elfTex.Signal()
 			}
 		PrintElf(id + " is out")
-		mutex.signal()
+		mutex.Signal()
 	}
 }
 
@@ -137,7 +154,7 @@ func getHelp(id string) {
 
 func main() {
 	reindeerNames := []string{"Dasher", "Dancer", "Prancer", "Vixen", "Comet", "Cupid", "Donder", "Blitzen", "Rudolph"}
-	elfAmount := 2
+	elfAmount := 4
 	fmt.Println("Christmas is coming")
 	go santa()
 	for i := 0; i < len(reindeerNames); i++ {
@@ -148,7 +165,7 @@ func main() {
 		fmt.Println("Making elf ", i)
 		go elf(fmt.Sprintf("%d", i))
 	}
-	<-time.After(3 * time.Second)
+	<-time.After(500 * time.Millisecond)
 	goodbye := " Christmas is here "
 	colors := []string{Red, Green, Yellow}
 	for i := 0; i < len(goodbye); i++ {
