@@ -41,5 +41,5 @@ func main() {
 			go philosopher(i, fork_channels[(i+1)%PHILOSOPHERS], fork_channels[i])
 		}
 	}
-	<-time.After(5 * time.Second)
+	<-time.After(500 * time.Millisecond)
 }

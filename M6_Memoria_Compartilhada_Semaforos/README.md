@@ -34,6 +34,7 @@ k)  Barreiras reutilizávies. (se houver necessidade de mais um grupo.)
 
 ## Integrantes do Grupo de Resolução
 
+- Arthur Both
 - Carolina Ferreira
 - Felipe Freitas
 - Gabriel Ferreira
